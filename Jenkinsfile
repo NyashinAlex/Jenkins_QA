@@ -21,8 +21,20 @@ pipeline {
             steps {
                 echo 'Verifying build...'
                 sh 'cat build/version.txt'
-                sh 'ls -al build/'
+                sh 'ls -la build/'
                 echo 'Verification completed'
+            }
+        }
+
+        stage('System Info') {
+            steps {
+                echo '=== System Information ==='
+                echo 'User'
+                sh 'whoami'
+                echo 'Info about disk'
+                sh 'df -h .'
+                echo "Build Number: ${BUILD_NUMBER}"
+                echo "Job Name: ${JOB_NAME}"
             }
         }
     }
