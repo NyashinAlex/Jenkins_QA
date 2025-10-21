@@ -11,9 +11,18 @@ pipeline {
 
         stage('Build') {
             steps {
-                echo 'Building application..."'
+                echo 'Building application...'
                 sh 'echo "Build version: 1.0.0" > build/version.txt'
                 echo 'Build completed'
+            }
+        }
+
+        stage('Verify') {
+            steps {
+                echo 'Verifying build...'
+                sh 'cat build/version.txt'
+                sh 'ls -al build/'
+                echo 'Verification completed'
             }
         }
     }
