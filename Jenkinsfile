@@ -1,38 +1,15 @@
 pipeline {
-    agent none
+    agent any
+
     stages {
-        stage('Check Agent') {
-            agent any
-
+        stage('Variables Demo') {
             steps {
-                echo 'Running on agent...'
-                sh 'hostname'
-                echo "WORKSPACE: ${WORKSPACE}"
-                echo "NODE NAME: ${NODE_NAME}"
-            }
-        }
-
-        stage('Build Info') {
-            agent any
-
-            steps {
-                echo 'Build information...'
-                echo "BUILD NUMBER: ${BUILD_NUMBER}"
-                echo "BUILD ID: ${BUILD_ID}"
-                echo "BUILD URL: ${BUILD_URL}"
-            }
-        }
-
-        stage('System Details') {
-            agent any
-
-            steps {
-                sh 'uname -a'
-                sh 'whoami'
-                sh 'pwd'
-                sh 'ls -la'
-                sh 'free -h'
-                sh 'date'
+                script {
+                    def appName = 'MyApplication'
+                    def port = 8080
+                    def isProduction = false
+                    echo "App name, port and is_production: ${appName}, ${port}, ${isProduction}"
+                }
             }
         }
     }
