@@ -2,79 +2,81 @@ pipeline {
     agent any
 
     stages {
-        stage('Variables Demo') {
+        stage('Preparation') {
             steps {
-                script {
-                    def appName = 'MyApplication'
-                    def port = 8080
-                    def isProduction = false
-                    echo "App name, port and is_production: ${appName}, ${port}, ${isProduction}"
-                }
+                echo 'Starting WebStore CI/CD Pipeline'
+                sh 'mkdir -p build test-reports artifacts'
+                sh 'date'
+                echo "NODE NAME: ${env.NODE_NAME}"
+                echo "WORKSPACE: ${env.WORKSPACE}"
             }
         }
 
-        stage('String Operations') {
+        stage('Generate Version') {
             steps {
                 script {
-                    def message = 'Jenkins Pipeline Tutorial'
-                    echo "Size message: ${message.length()}"
-                    echo "Upper case message: ${message.toUpperCase()}"
-                    echo "Lower case message: ${message.toLowerCase()}"
-                    echo "New message: ${message.replace('Tutorial', 'Course')}"
-                }
-            }
-        }
-
-        stage('Build Version') {
-            steps {
-                script {
-                    def major = '1'
-                    def minor = '0'
-                    env.APP_VERSION = "1.0.${env.BUILD_NUMBER}"
+                    def major = 2
+                    def minor = 1
+                    env.APP_VERSION = "${major}.${minor}.${env.BUILD_NUMBER}-${env.GIT_COMMIT.take(7)}"
                     echo "Application version: ${env.APP_VERSION}"
                 }
             }
         }
 
-        stage('Display Version') {
+        stage('Build Application') {
             steps {
                 script {
-                    echo "Using version: ${env.APP_VERSION}"
-                    def imageName = "myapp:${env.APP_VERSION}"
-                    echo "Docker image would be: ${imageName}"
+                    echo "Building WebStore version ${env.APP_VERSION}"
+                    echo "${env.APP_VERSION} > build/version.txt"
+                    echo 'WebStore Application Binary > build/app.jar'
+                    sh 'ls -la build/'
+                    echo 'Build completed successfully'
                 }
             }
         }
 
-        stage('Jenkins Info') {
+        stage('Unit Tests') {
+            steps {
+                echo 'Running unit tests...'
+                sh 'echo "Unit tests: PASSED" > test-reports/unit-tests.txt'
+                sh 'sleep 2'
+                echo 'Unit tests completed'
+            }
+        }
+
+        stage('Integration Tests') {
+            steps {
+                echo 'Running integration tests...'
+                sh 'echo "Integration tests: PASSED" > test-reports/integration-tests.txt'
+                sh 'sleep 3'
+                echo 'Integration tests completed'
+            }
+        }
+
+        stage('Package Artifacts') {
             steps {
                 script {
-                    echo "BUILD_NUMBER: ${env.BUILD_NUMBER}"
-                    echo "BUILD_ID: ${env.BUILD_ID}"
-                    echo "JOB_NAME: ${env.JOB_NAME}"
-                    echo "WORKSPACE: ${env.WORKSPACE}"
-                    echo "BUILD_URL: ${env.BUILD_URL}"
+                    def artifactName = "webstore-${env.APP_VERSION}.tar.gz"
+                    echo "Creating artifact: ${artifactName}"
+                    sh 'tar -czf artifacts/arzif.txt build/ test-reports/'
+                    sh 'ls -lh artifacts/'
+                    echo 'Artifact ready for deployment'
                 }
             }
         }
 
-        stage('Generate Config') {
+        stage('Summary') {
             steps {
                 script {
-                    def config = """
-        app:
-          name: ${env.APP_VERSION}
-          port: 8080
-
-        build:
-          number: ${env.BUILD_NUMBER}
-          date: ${new Date()}
-        """
-                    echo "Generated config:"
-                    echo config
-
-                    writeFile file: 'config.yaml', text: config
-                    sh 'cat config.yaml'
+                    echo """
+                    === Build Summary ===
+                    Application: WebStore
+                    Version: ${env.APP_VERSION}
+                    Build Number: ${env.BUILD_NUMBER}
+                    Build URL: ${env.BUILD_URL}
+                    Status: SUCCESS
+                    === End of Pipeline ===
+                    """
                 }
             }
         }
