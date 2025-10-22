@@ -1,49 +1,12 @@
 pipeline {
     agent any
     stages {
-        stage('Prepare') {
+        stage('Check Agent') {
             steps {
-                echo 'Preparing workspace...'
-                sh 'mkdir -p build logs temp'
-                echo 'Directories created'
-            }
-        }
-
-        stage('Build') {
-            steps {
-                echo 'Building application...'
-                sh 'echo "Build version: 1.0.0" > build/version.txt'
-                echo 'Build completed'
-            }
-        }
-
-        stage('Verify') {
-            steps {
-                echo 'Verifying build...'
-                sh 'cat build/version.txt'
-                sh 'ls -la build/'
-                echo 'Verification completed'
-            }
-        }
-
-        stage('System Info') {
-            steps {
-                echo '=== System Information ==='
-                echo 'User'
-                sh 'whoami'
-                echo 'Info about disk'
-                sh 'df -h .'
-                echo "Build Number: ${BUILD_NUMBER}"
-                echo "Job Name: ${JOB_NAME}"
-            }
-        }
-
-        stage('Cleanup') {
-            steps {
-                echo 'Cleaning up temporary files...'
-                sh 'rm -rf temp logs'
-                sh 'ls -la'
-                echo 'Cleanup completed'
+                echo 'Running on agent...'
+                sh 'hostname'
+                echo "WORKSPACE: ${WORKSPACE}"
+                echo "NODE NAME: ${NODE_NAME}"
             }
         }
     }
