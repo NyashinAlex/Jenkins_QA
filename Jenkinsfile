@@ -43,5 +43,29 @@ pipeline {
                 echo "Environment: ${env.DEPLOY_ENV}"
             }
         }
+
+        stage('Run Tests') {
+            steps {
+                when {
+                    expression {
+                        env.BUILD_NUMBER.toInteger() % 2 == 0
+                    }
+                }
+                echo "Running tests for build ${env.BUILD_NUMBER}"
+                echo 'This is an even-numbered build'
+            }
+        }
+
+        stage('Skip Tests') {
+            steps {
+                when {
+                    expression {
+                        env.BUILD_NUMBER.toInteger() % 2 != 0
+                    }
+                }
+                echo "Skipping tests for build ${env.BUILD_NUMBER}"
+                echo 'This is an odd-numbered build'
+            }
+        }
     }
 }
