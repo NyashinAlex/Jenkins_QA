@@ -28,5 +28,27 @@ pipeline {
                 }
             }
         }
+
+        stage('Configuration Map') {
+            steps {
+                script {
+                    def configuration = [
+                        'appName', 'MyWebApp'
+                        'version', '2.0.0'
+                        'port', 8080
+                        'environment', 'production'
+                    ]
+
+                    echo "appName: ${appName}"
+                    echo "version: ${version}"
+                    echo "port: ${port}"
+                    echo "environment: ${environment}"
+                    echo "Count elements in configuration: ${configuration.size()}"
+
+                    configuration.add('region', 'us-east-1')
+                    echo "configuration: ${configuration}"
+                }
+            }
+        }
     }
 }
