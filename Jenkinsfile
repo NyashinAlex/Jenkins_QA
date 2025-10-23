@@ -83,5 +83,17 @@ pipeline {
                 echo "Branch: ${env.BRANCH_NAME}, Environment: ${env.DEPLOY_ENV}"
             }
         }
+
+        stage('Summary') {
+            steps {
+                echo """
+                === Pipeline Execution Summary ===
+                Branch: ${env.BRANCH_NAME}
+                Build Number: ${env.BUILD_NUMBER}
+                Deploy Environment: ${env.DEPLOY_ENV}
+                All stages completed
+                """
+            }
+        }
     }
 }
