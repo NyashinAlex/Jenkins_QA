@@ -67,5 +67,21 @@ pipeline {
                 echo 'This is an odd-numbered build'
             }
         }
+
+        stage('Security Scan') {
+            steps {
+                when {
+                 allOf {
+                     anyOf {
+                         branch 'main'
+                         branch 'develop'
+                     }
+                     environment name: 'DEPLOY_ENV', value: 'staging'
+                 }
+                }
+                echo 'Running security scan'
+                echo "Branch: ${env.BRANCH_NAME}, Environment: ${env.DEPLOY_ENV}"
+            }
+        }
     }
 }
