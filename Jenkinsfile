@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        env.DEPLOY_ENV = 'staging'
+        DEPLOY_ENV = 'staging'
     }
 
     stages {
@@ -15,70 +15,70 @@ pipeline {
         }
 
         stage('Deploy to Production') {
+            when {
+                branch 'main'
+            }
             steps {
-                when {
-                    branch 'main'
-                }
                 echo 'Deploying to production environment'
                 echo 'Branch: main - deployment allowed'
             }
         }
 
         stage('Deploy to Staging') {
+            when {
+                environment name: 'DEPLOY_ENV', value: 'staging'
+            }
             steps {
-                when {
-                    env.DEPLOY_ENV = 'staging'
-                }
                 echo 'Deploying to staging environment'
                 echo "Environment: ${env.DEPLOY_ENV}"
             }
         }
 
         stage('Deploy to Production (by env)') {
+            when {
+                environment name: 'DEPLOY_ENV', value: 'production'
+            }
             steps {
-                when {
-                    env.DEPLOY_ENV = 'production'
-                }
                 echo 'Deploying to production environment'
                 echo "Environment: ${env.DEPLOY_ENV}"
             }
         }
 
         stage('Run Tests') {
-            steps {
-                when {
-                    expression {
-                        env.BUILD_NUMBER.toInteger() % 2 == 0
-                    }
+            when {
+                expression {
+                    env.BUILD_NUMBER.toInteger() % 2 == 0
                 }
+            }
+            steps {
                 echo "Running tests for build ${env.BUILD_NUMBER}"
                 echo 'This is an even-numbered build'
             }
         }
 
         stage('Skip Tests') {
-            steps {
-                when {
-                    expression {
-                        env.BUILD_NUMBER.toInteger() % 2 != 0
-                    }
+            when {
+                expression {
+                    env.BUILD_NUMBER.toInteger() % 2 != 0
                 }
+            }
+            steps {
                 echo "Skipping tests for build ${env.BUILD_NUMBER}"
                 echo 'This is an odd-numbered build'
             }
         }
 
         stage('Security Scan') {
-            steps {
-                when {
-                 allOf {
-                     anyOf {
-                         branch 'main'
-                         branch 'develop'
-                     }
-                     environment name: 'DEPLOY_ENV', value: 'staging'
-                 }
+            when {
+                allOf {
+                    anyOf {
+                        branch 'main'
+                        branch 'develop'
+                    }
+                    environment name: 'DEPLOY_ENV', value: 'staging'
                 }
+            }
+            steps {
                 echo 'Running security scan'
                 echo "Branch: ${env.BRANCH_NAME}, Environment: ${env.DEPLOY_ENV}"
             }
