@@ -1,98 +1,18 @@
 pipeline {
     agent any
 
-    environment {
-        DEPLOY_ENV = 'production'
-    }
-
     stages {
-        stage('Build') {
+        stage('List Basics') {
             steps {
-                echo 'Building application...'
-                echo 'Git branch'
-                sh 'git branch --show-current'
-            }
-        }
+                script {
+                    dev environments = ['dev', 'staging', 'production']
+                    echo "First element by environments: ${environments.get[0]}"
+                    echo "Last element by environments: ${environments.get[-1]}"
+                    echo "Size environments: ${environments.size()}"
 
-        stage('Deploy to Production') {
-            when {
-                branch 'main'
-            }
-            steps {
-                echo 'Deploying to production environment'
-                echo 'Branch: main - deployment allowed'
-            }
-        }
-
-        stage('Deploy to Staging') {
-            when {
-                environment name: 'DEPLOY_ENV', value: 'staging'
-            }
-            steps {
-                echo 'Deploying to staging environment'
-                echo "Environment: ${env.DEPLOY_ENV}"
-            }
-        }
-
-        stage('Deploy to Production (by env)') {
-            when {
-                environment name: 'DEPLOY_ENV', value: 'production'
-            }
-            steps {
-                echo 'Deploying to production environment'
-                echo "Environment: ${env.DEPLOY_ENV}"
-            }
-        }
-
-        stage('Run Tests') {
-            when {
-                expression {
-                    env.BUILD_NUMBER.toInteger() % 2 == 0
+                    environments.add(qa)
+                    echo "Mew size environments: ${environments.size()}"
                 }
-            }
-            steps {
-                echo "Running tests for build ${env.BUILD_NUMBER}"
-                echo 'This is an even-numbered build'
-            }
-        }
-
-        stage('Skip Tests') {
-            when {
-                expression {
-                    env.BUILD_NUMBER.toInteger() % 2 != 0
-                }
-            }
-            steps {
-                echo "Skipping tests for build ${env.BUILD_NUMBER}"
-                echo 'This is an odd-numbered build'
-            }
-        }
-
-        stage('Security Scan') {
-            when {
-                allOf {
-                    anyOf {
-                        branch 'main'
-                        branch 'develop'
-                    }
-                    environment name: 'DEPLOY_ENV', value: 'staging'
-                }
-            }
-            steps {
-                echo 'Running security scan'
-                echo "Branch: ${env.BRANCH_NAME}, Environment: ${env.DEPLOY_ENV}"
-            }
-        }
-
-        stage('Summary') {
-            steps {
-                echo """
-                === Pipeline Execution Summary ===
-                Branch: ${env.BRANCH_NAME}
-                Build Number: ${env.BUILD_NUMBER}
-                Deploy Environment: ${env.DEPLOY_ENV}
-                All stages completed
-                """
             }
         }
     }
