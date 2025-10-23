@@ -1,6 +1,10 @@
 pipeline {
     agent any
 
+    environment {
+        env.DEPLOY_ENV = 'staging'
+    }
+
     stages {
         stage('Build') {
             steps {
@@ -17,6 +21,26 @@ pipeline {
                 }
                 echo 'Deploying to production environment'
                 echo 'Branch: main - deployment allowed'
+            }
+        }
+
+        stage('Deploy to Staging') {
+            steps {
+                when {
+                    env.DEPLOY_ENV = 'staging'
+                }
+                echo 'Deploying to staging environment'
+                echo "Environment: ${env.DEPLOY_ENV}"
+            }
+        }
+
+        stage('Deploy to Production (by env)') {
+            steps {
+                when {
+                    env.DEPLOY_ENV = 'production'
+                }
+                echo 'Deploying to production environment'
+                echo "Environment: ${env.DEPLOY_ENV}"
             }
         }
     }
