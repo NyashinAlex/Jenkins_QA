@@ -38,5 +38,26 @@ pipeline {
                 }
             }
         }
+
+        stage('Deploy') {
+            steps {
+                echo 'Deploying application...'
+                sh 'sleep 3'
+                echo 'Deployment completed'
+            }
+        }
+
+        post {
+            success {
+                echo 'Deploy stage finished'
+                sh 'ls -la build/'
+            }
+            cleanup {
+                echo '=== Cleanup Phase ==='
+                echo 'Removing temporary files...'
+                sh 'mkdir temp && rm -rf temp'
+                echo 'Cleanup completed'
+            }
+        }
     }
 }
