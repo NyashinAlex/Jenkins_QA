@@ -24,8 +24,6 @@ pipeline {
                 echo 'Running tests...'
                 sh 'sleep 2'
                 echo 'Tests completed'
-
-                sh 'exit 1'
             }
 
             post {
