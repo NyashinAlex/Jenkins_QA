@@ -50,14 +50,6 @@ pipeline {
     }
 
     post {
-        always {
-            emailext (
-                from: 'jenkinsQA@test.ru',
-                to: 'alex-nyashin1996@yandex.ru',
-                subject: "Build #${BUILD_NUMBER}",
-                body: "Check: ${BUILD_URL}"
-            )
-        }
         success {
             echo 'Deploy stage finished'
             sh 'ls -la build/'
