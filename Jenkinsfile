@@ -4,6 +4,7 @@ pipeline {
     stages {
         stage('Build') {
             steps {
+                sh 'rm -rf build'
                 echo 'Building application...'
                 sh 'mkdir build'
                 sh 'echo "Application binary" > build/app.jar'
@@ -48,23 +49,31 @@ pipeline {
                 echo 'Deployment completed'
             }
         }
+    }
 
-        post {
-            success {
-                echo 'Deploy stage finished'
-                sh 'ls -la build/'
+    post {
+        always {
+            emailext (
+                from: 'jenkinsQA@test.ru',
+                to: 'alex-nyashin1996@yandex.ru',
+                subject: "Build #${BUILD_NUMBER}",
+                body: "Check: ${BUILD_URL}"
+            )
+        }
+        success {
+            echo 'Deploy stage finished'
+            sh 'ls -la build/'
 
-                echo 'Archiving build artifacts...'
-                sh 'tar -czf build.tar.gz build/'
-                sh 'ls -lh build.tar.gz'
-                echo 'Artifacts archived successfully'
-            }
-            cleanup {
-                echo '=== Cleanup Phase ==='
-                echo 'Removing temporary files...'
-                sh 'mkdir temp && rm -rf temp'
-                echo 'Cleanup completed'
-            }
+            echo 'Archiving build artifacts...'
+            sh 'tar -czf build.tar.gz build/'
+            sh 'ls -lh build.tar.gz'
+            echo 'Artifacts archived successfully'
+        }
+        cleanup {
+            echo '=== Cleanup Phase ==='
+            echo 'Removing temporary files...'
+            sh 'mkdir temp && rm -rf temp'
+            echo 'Cleanup completed'
         }
     }
 }
