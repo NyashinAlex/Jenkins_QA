@@ -51,6 +51,11 @@ pipeline {
             success {
                 echo 'Deploy stage finished'
                 sh 'ls -la build/'
+
+                echo 'Archiving build artifacts...'
+                sh 'tar -czf build.tar.gz build/'
+                sh 'ls -lh build.tar.gz'
+                echo 'Artifacts archived successfully'
             }
             cleanup {
                 echo '=== Cleanup Phase ==='
