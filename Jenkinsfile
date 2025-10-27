@@ -82,5 +82,27 @@ pipeline {
                 }
             }
         }
+
+        stage('Filter Environments') {
+            steps {
+                script {
+                    def deployments = [
+                        'dev': ['dev1.example.com', 'dev2.example.com'],
+                        'test': ['test1.example.com', 'test2.example.com'],
+                        'staging': ['stage1.example.com'],
+                        'prod': ['prod1.example.com', 'prod2.example.com', 'prod3.example.com']
+                        'backup': ['backup1.example.com', 'backup2.example.com', 'backup3.example.com']
+                    ]
+
+                    def activeEnvs = deployments.findAll {
+                        deployment != 'backup'
+                    }
+
+                    activeEnvs.each { key, value ->
+                        echo "${key}:${value}"
+                    }
+                }
+            }
+        }
     }
 }
