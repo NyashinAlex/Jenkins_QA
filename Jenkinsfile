@@ -73,5 +73,33 @@ pipeline {
                 }
             }
         }
+
+        stage('Advanced Approval') {
+            steps {
+                script {
+                    echo 'Configure deployment'
+                    def params = input(
+                        parameters: [
+                            string(
+                                name: 'VERSION'
+                                defaultValue: '1.0.0'
+                            ),
+                            choice(
+                                name: 'ENVIRONMENT'
+                                choice: ['staging', 'production']
+                            ),
+                            booleanParam(
+                                name: 'SEND_NOTIFICATION'
+                                defaultValue: true
+                            )
+                        ]
+                    )
+
+                    echo "VERSION: ${parameters.VERSION}"
+                    echo "ENVIRONMENT: ${parameters.ENVIRONMENT}"
+                    echo "SEND_NOTIFICATION: ${parameters.SEND_NOTIFICATION}"
+                }
+            }
+        }
     }
 }
