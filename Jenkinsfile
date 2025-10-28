@@ -29,7 +29,7 @@ pipeline {
 
         stage('Notify Team') {
             steps {
-                input message: 'Send notification to the team?'
+                input message: 'Send notification to the team?',
                            ok: 'Send Notification'
 
                 echo 'Sending notification...'
@@ -41,23 +41,22 @@ pipeline {
             steps {
                 script {
                     def strategy = input(
-                        message: 'Select deployment strategy'
+                        message: 'Select deployment strategy',
                         parameters: [
                             choice(
                                 name: 'STRATEGY',
-                                choice: ['rolling', 'blue-green', 'canary']
+                                choices: ['rolling', 'blue-green', 'canary']
                             )
                         ]
                     )
 
                     echo "Selected strategy: ${strategy}"
-                    if(${strategy} == 'rolling') {
+
+                    if (strategy == 'rolling') {
                         echo 'Deploying with rolling update...'
-                    }
-                    if(${strategy} == 'blue-green') {
+                    } else if (strategy == 'blue-green') {
                         echo 'Deploying with blue-green update...'
-                    }
-                    if(${strategy} == 'canary') {
+                    } else if (strategy == 'canary') {
                         echo 'Deploying with canary update...'
                     }
                 }
@@ -66,7 +65,7 @@ pipeline {
 
         stage('Approval with Timeout') {
             steps {
-                timeout:(time: 2, unit: 'MINUTES') {
+                timeout(time: 2, unit: 'MINUTES') {
                     input message: 'Approve within 2 minutes'
 
                     echo 'Approval received in time'
@@ -81,28 +80,28 @@ pipeline {
                     def params = input(
                         parameters: [
                             string(
-                                name: 'VERSION'
+                                name: 'VERSION',
                                 defaultValue: '1.0.0'
                             ),
                             choice(
-                                name: 'ENVIRONMENT'
-                                choice: ['staging', 'production']
+                                name: 'ENVIRONMENT',
+                                choices: ['staging', 'production']
                             ),
                             booleanParam(
-                                name: 'SEND_NOTIFICATION'
+                                name: 'SEND_NOTIFICATION',
                                 defaultValue: true
                             )
                         ]
                     )
 
-                    echo "VERSION: ${parameters.VERSION}"
-                    echo "ENVIRONMENT: ${parameters.ENVIRONMENT}"
-                    echo "SEND_NOTIFICATION: ${parameters.SEND_NOTIFICATION}"
+                    echo "VERSION: ${params.VERSION}"
+                    echo "ENVIRONMENT: ${params.ENVIRONMENT}"
+                    echo "SEND_NOTIFICATION: ${params.SEND_NOTIFICATION}"
                 }
             }
         }
 
-        stage('Advanced Approval') {
+        stage('Summary') {
             steps {
                 echo """
                     === Pipeline Completed ===
