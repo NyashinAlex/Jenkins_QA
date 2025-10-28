@@ -36,5 +36,32 @@ pipeline {
                 echo 'Notification sent to team@company.com'
             }
         }
+
+        stage('Deploy Strategy') {
+            steps {
+                script {
+                    def strategy = input(
+                        message: 'Select deployment strategy'
+                        parameters: [
+                            choice(
+                                name: 'STRATEGY',
+                                choice: ['rolling', 'blue-green', 'canary']
+                            )
+                        ]
+                    )
+
+                    echo "Selected strategy: ${strategy}"
+                    if(${strategy} == 'rolling') {
+                        echo 'Deploying with rolling update...'
+                    }
+                    if(${strategy} == 'blue-green') {
+                        echo 'Deploying with blue-green update...'
+                    }
+                    if(${strategy} == 'canary') {
+                        echo 'Deploying with canary update...'
+                    }
+                }
+            }
+        }
     }
 }
