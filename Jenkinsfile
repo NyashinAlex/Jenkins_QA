@@ -101,5 +101,15 @@ pipeline {
                 }
             }
         }
+
+        stage('Advanced Approval') {
+            steps {
+                echo """
+                    === Pipeline Completed ===
+                    All approvals received
+                    Build Number: ${env.BUILD_NUMBER}
+                """
+            }
+        }
     }
 }
