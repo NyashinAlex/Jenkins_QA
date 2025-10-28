@@ -4,18 +4,9 @@ pipeline {
     stages {
         stage('Build') {
             steps {
-                sh 'rm -rf build'
                 echo 'Building application...'
-                sh 'mkdir build'
-                sh 'echo "Application binary" > build/app.jar'
-            }
-
-            post {
-                always {
-                    echo '=== Post Actions ==='
-                    echo 'Pipeline completed'
-                    sh 'date'
-                }
+                sh 'sleep 2'
+                echo 'Build completed'
             }
         }
 
@@ -23,47 +14,27 @@ pipeline {
             steps {
                 echo 'Running tests...'
                 sh 'sleep 2'
-                echo 'Tests completed'
-            }
-
-            post {
-                success {
-                    echo '✓ Build SUCCESS'
-                    echo "Build Number: ${env.BUILD_NUMBER}"
-                    echo 'All stages passed successfully'
-                }
-                failure {
-                    echo '✗ Build FAILED'
-                    echo "Build Number: ${env.BUILD_NUMBER}"
-                    echo 'Check console output for details'
-                }
+                echo 'Tests passed'
             }
         }
 
-        stage('Deploy') {
+        stage('Deploy to Production') {
             steps {
-                echo 'Deploying application...'
+                input message: 'Deploy to production?'
+
                 sh 'sleep 3'
-                echo 'Deployment completed'
+                echo 'Deployment completed successfully'
             }
         }
-    }
 
-    post {
-        success {
-            echo 'Deploy stage finished'
-            sh 'ls -la build/'
+        stage('Notify Team') {
+            steps {
+                input message: 'Send notification to the team?'
+                           ok: 'Send Notification'
 
-            echo 'Archiving build artifacts...'
-            sh 'tar -czf build.tar.gz build/'
-            sh 'ls -lh build.tar.gz'
-            echo 'Artifacts archived successfully'
-        }
-        cleanup {
-            echo '=== Cleanup Phase ==='
-            echo 'Removing temporary files...'
-            sh 'mkdir temp && rm -rf temp'
-            echo 'Cleanup completed'
+                echo 'Sending notification...'
+                echo 'Notification sent to team@company.com'
+            }
         }
     }
 }
