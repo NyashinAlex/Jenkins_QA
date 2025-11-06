@@ -58,5 +58,24 @@ pipeline {
                 sh 'pkill -f "node server.js"'
             }
         }
+
+        stage('Summary') {
+            script {
+                steps {
+                    if(env.NODE_ENV == 'development') {
+                        echo 'Running in development mode'
+                    } else {
+                        echo 'Running in production mode'
+                    }
+
+                    echo """
+                        Application: ${env.APP_NAME}
+                        Version: ${env.APP_VERSION}
+                        Environment: ${env.NODE_ENV}
+                        Build completed at build #${env.BUILD_NUMBER}
+                    """
+                }
+            }
+        }
     }
 }
