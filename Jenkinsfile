@@ -7,7 +7,7 @@ pipeline {
 
     environment {
         APP_NAME = 'jenkins-sample-app'
-        NODE_ENV = 'production'
+        NODE_ENV = 'staging'
         APP_VERSION = "1.0.${BUILD_NUMBER}"
     }
 
