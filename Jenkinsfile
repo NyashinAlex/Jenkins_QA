@@ -34,5 +34,17 @@ pipeline {
                 echo 'Build completed successfully'
             }
         }
+
+        stage('Build') {
+            environment {
+                NODE_ENV = 'test'
+            }
+
+            steps {
+                sh 'cd app'
+                echo "Running tests in ${env.NODE_ENV} environment"
+                sh "NODE_ENV=${env.NODE_ENV} APP_VERSION=${env.APP_VERSION} npm test"
+            }
+        }
     }
 }
