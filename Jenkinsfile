@@ -29,5 +29,22 @@ pipeline {
                 }
             }
         }
+
+        stage('Configure Database') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'database-creds',
+                    usernameVariable: 'DB_USER',
+                    passwordVariable: 'DB_PASS'
+                    )]) {
+                    echo 'Configuring database connection...'
+                    echo "Database user: ${env.DB_USER}"
+                    echo "Database password: ${env.DB_PASS}"
+                    sh "cat 'echo "DB_USER=${env.DB_USER}" > app/db.config'"
+                    sh "cat 'echo "DB_PASS=${env.DB_PASS}" >> app/db.config"
+                    echo 'Database configuration created'
+                }
+            }
+        }
     }
 }
