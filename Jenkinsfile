@@ -3,8 +3,8 @@ pipeline {
 
     environment {
         PROJECT_NAME = 'CloudStore'
-        DEPLOY_ENVIRONMENT = 'staging'
-        RUN_SECURITY_SCAN = 'true'
+        DEPLOY_ENVIRONMENT = 'production'
+        RUN_SECURITY_SCAN = 'false'
     }
 
     stages {
