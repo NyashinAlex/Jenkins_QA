@@ -44,9 +44,9 @@ pipeline {
         }
 
         stage('Test') {
-            environment {
-                NODE_ENV = 'test'
-            }
+//             environment {
+//                 NODE_ENV = 'test'
+//             }
 
             steps {
                 dir('app') {
