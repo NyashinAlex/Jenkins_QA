@@ -72,5 +72,25 @@ pipeline {
                 }
             }
         }
+
+        stage('Run Application') {
+            withCredentials {
+                [string(credentialsId: 'api-key', variable: 'API_KEY')],
+                [string(credentialsId: 'database-url', variable: 'DATABASE_URL')],
+            }
+
+            dir('app') {
+                echo """
+                    Starting application:
+                    - Version: ${params.APP_VERSION}
+                    - Environment: ${params.ENVIRONMENT}
+                """
+                sh "NODE_ENV=${params.ENVIRONMENT} APP_VERSION=${params.APP_VERSION} BUILD_NUMBER=$BUILD_NUMBER API_KEY=$API_KEY DATABASE_URL=$DATABASE_URL npm start &"
+                sh 'sleep 3'
+                sh 'curl http://localhost:3000/'
+                sh 'curl http://localhost:3000/config'
+                sh 'pkill -f "node server.js"'
+            }
+        }
     }
 }
