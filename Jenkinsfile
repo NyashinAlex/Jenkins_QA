@@ -107,5 +107,24 @@ pipeline {
                 echo 'Production deployment completed successfully'
             }
         }
+
+        stage('Summary') {
+            steps {
+                echo """
+                    === BUILD SUMMARY ===
+                    Application: ${APP_NAME}
+                    Version: ${params.APP_VERSION}
+                    Environment: ${params.ENVIRONMENT}
+                    Build Number: ${BUILD_NUMBER}
+                    Tests Run: ${params.RUN_TESTS ? 'Yes' : 'No'}
+                    Linting Run: ${params.RUN_LINT ? 'Yes' : 'No'}
+                """
+                if(params.ENVIRONMENT == 'production') {
+                    echo 'Status: Deployed to PRODUCTION'
+                } else {
+                    echo "Status: Deployed to ${params.ENVIRONMENT.toUpperCase()}"
+                }
+            }
+        }
     }
 }
