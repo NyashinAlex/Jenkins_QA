@@ -1,11 +1,15 @@
 pipeline {
     agent any
 
+    tools {
+        nodejs 'NodeJS'
+    }
+
     parameters {
-        string(name: APP_VERSION, defaultValue: '1.0.0', description: 'Application version to build'),
-        choice(name: ENVIRONMENT, choices: ['development', 'staging', 'production'], description: 'Target environment'),
-        booleanParam(name: RUN_TESTS, defaultValue: true, description: 'Run test suite'),
-        booleanParam(name: RUN_LINT, defaultValue: false, description: 'Run linter')
+        string(name: 'APP_VERSION', defaultValue: '1.0.0', description: 'Application version to build')
+        choice(name: 'ENVIRONMENT', choices: ['development', 'staging', 'production'], description: 'Target environment')
+        booleanParam(name: 'RUN_TESTS', defaultValue: true, description: 'Run test suite')
+        booleanParam(name: 'RUN_LINT', defaultValue: false, description: 'Run linter')
     }
 
     environment {
@@ -67,35 +71,41 @@ pipeline {
             steps {
                 dir('app') {
                     echo "Running tests for ${params.APP_VERSION}"
-                    sh "NODE_ENV=test APP_VERSION=${params.APP_VERSION} npm test"
+                    sh "NODE_ENV=${params.ENVIRONMENT} APP_VERSION=${params.APP_VERSION} npm test"
                     echo 'All tests passed'
                 }
             }
         }
 
         stage('Run Application') {
-            withCredentials {
-                [string(credentialsId: 'api-key', variable: 'API_KEY')],
-                [string(credentialsId: 'database-url', variable: 'DATABASE_URL')],
-            }
-
             steps {
-                dir('app') {
-                    echo """
-                        Starting application:
-                        - Version: ${params.APP_VERSION}
-                        - Environment: ${params.ENVIRONMENT}
-                    """
-                    sh "NODE_ENV=${params.ENVIRONMENT} APP_VERSION=${params.APP_VERSION} BUILD_NUMBER=$BUILD_NUMBER API_KEY=$API_KEY DATABASE_URL=$DATABASE_URL npm start &"
-                    sh 'sleep 3'
-                    sh 'curl http://localhost:3000/'
-                    sh 'curl http://localhost:3000/config'
-                    sh 'pkill -f "node server.js"'
+                withCredentials ([
+                    string(credentialsId: 'api-key', variable: 'API_KEY'),
+                    string(credentialsId: 'database-url', variable: 'DATABASE_URL')
+                ]) {
+                    dir('app') {
+                        echo """
+                            Starting application:
+                            - Version: ${params.APP_VERSION}
+                            - Environment: ${params.ENVIRONMENT}
+                        """
+                        sh "NODE_ENV=${params.ENVIRONMENT} APP_VERSION=${params.APP_VERSION} BUILD_NUMBER=${env.BUILD_NUMBER} API_KEY=${API_KEY} DATABASE_URL=${DATABASE_URL} npm start &"
+                        sh 'sleep 3'
+                        sh 'curl http://localhost:3000/'
+                        sh 'curl http://localhost:3000/config'
+                        sh 'pkill -f "node server.js"'
+                    }
                 }
             }
         }
 
         stage('Deploy to Production') {
+            when {
+                expression {
+                    params.ENVIRONMENT == 'production'
+                }
+            }
+
             steps {
                 echo """
                     === PRODUCTION DEPLOYMENT ===
@@ -110,19 +120,21 @@ pipeline {
 
         stage('Summary') {
             steps {
-                echo """
-                    === BUILD SUMMARY ===
-                    Application: ${APP_NAME}
-                    Version: ${params.APP_VERSION}
-                    Environment: ${params.ENVIRONMENT}
-                    Build Number: ${BUILD_NUMBER}
-                    Tests Run: ${params.RUN_TESTS ? 'Yes' : 'No'}
-                    Linting Run: ${params.RUN_LINT ? 'Yes' : 'No'}
-                """
-                if(params.ENVIRONMENT == 'production') {
-                    echo 'Status: Deployed to PRODUCTION'
-                } else {
-                    echo "Status: Deployed to ${params.ENVIRONMENT.toUpperCase()}"
+                script {
+                     echo """
+                         === BUILD SUMMARY ===
+                         Application: ${APP_NAME}
+                         Version: ${params.APP_VERSION}
+                         Environment: ${params.ENVIRONMENT}
+                         Build Number: ${BUILD_NUMBER}
+                         Tests Run: ${params.RUN_TESTS ? 'Yes' : 'No'}
+                         Linting Run: ${params.RUN_LINT ? 'Yes' : 'No'}
+                     """
+                     if(params.ENVIRONMENT == 'production') {
+                         echo 'Status: Deployed to PRODUCTION'
+                     } else {
+                         echo "Status: Deployed to ${params.ENVIRONMENT.toUpperCase()}"
+                     }
                 }
             }
         }
