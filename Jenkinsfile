@@ -33,5 +33,35 @@ pipeline {
                 echo 'cat python-app/dist/build-info.json'
             }
         }
+
+        stage('Build and Stash Multiple') {
+            steps {
+                stash name: 'binaries', includes: 'python-app/dist/package/**'
+                stash name: 'docs', includes: 'python-app/dist/docs/**'
+                stash name: 'metadata', includes: 'python-app/dist/*.json, python-app/dist/*.txt'
+            }
+        }
+
+        stage('Use Binaries') {
+            steps {
+                unstash 'binaries'
+                sh 'ls -la python-app/dist/package/'
+                echo 'cat python-app/dist/package/VERSION'
+            }
+        }
+
+        stage('Publish Docs') {
+            steps {
+                unstash 'docs'
+                echo 'cat python-app/dist/docs/API.md'
+            }
+        }
+
+        stage('Check Metadata') {
+            steps {
+                unstash 'metadata'
+                echo 'cat python-app/dist/build-info.json && cat python-app/dist/BUILD-REPORT.txt'
+            }
+        }
     }
 }
