@@ -10,7 +10,7 @@ pipeline {
         stage('Build') {
             steps {
                 dir('python-app') {
-                    sh 'pip3 install -r requirements.txt'
+                    sh 'pip3 install -r requirements.txt --break-system-packages'
                     sh "APP_VERSION=${env.APP_VERSION} BUILD_NUMBER=${env.BUILD_NUMBER} ENVIRONMENT=${env.ENVIRONMENT} python3 build.py"
                     echo 'Build completed successfully'
                 }
@@ -33,7 +33,8 @@ pipeline {
         stage('Test') {
             steps {
                 dir('python-app') {
-                    sh "ENVIRONMENT=test APP_VERSION=${env.APP_VERSION} pytest -v --cov=app --cov-report=html --cov-report=xml --junit-xml=test-results.xml"
+                    sh "ENVIRONMENT=test APP_VERSION=${env.APP_VERSION} python3 -m pytest -v --cov=app --cov-report=html --cov-report=xml --junit-xml=test-results.xml"
+                    echo 'Tests completed'
                 }
             }
         }
@@ -54,29 +55,29 @@ pipeline {
 
         stage('Archive Optional Files') {
             steps {
-                archiveArtifacts artifacts: 'python-app/*.log'
+                archiveArtifacts artifacts: 'python-app/*.log',
                                  allowEmptyArchive: true
             }
         }
 
         stage('Archive Package with Fingerprint') {
             steps {
-                archiveArtifacts artifacts: 'python-app/dist/package/**'
+                archiveArtifacts artifacts: 'python-app/dist/package/**',
                                  fingerprint: true
             }
         }
     }
     post {
         success {
-            archiveArtifacts artifacts: 'python-app/dist/package/**'
+            archiveArtifacts artifacts: 'python-app/dist/package/**',
                              fingerprint: true
         }
         always {
-            archiveArtifacts artifacts: 'python-app/dist/build-info.json'
+            archiveArtifacts artifacts: 'python-app/dist/build-info.json',
                              allowEmptyArchive: true
         }
         failure {
-            archiveArtifacts artifacts: 'python-app/**/*.log'
+            archiveArtifacts artifacts: 'python-app/**/*.log',
                              allowEmptyArchive: true
         }
     }
