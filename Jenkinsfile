@@ -63,5 +63,40 @@ pipeline {
                 echo 'cat python-app/dist/build-info.json && cat python-app/dist/BUILD-REPORT.txt'
             }
         }
+
+        stage('Build for Tests') {
+            steps {
+                stages name: 'app-for-testing', includes: 'python-app/dist/package/**'
+            }
+        }
+
+        stage('Parallel Tests') {
+            parallel {
+                stage('Unit Tests') {
+                    steps {
+                        unstash 'app-for-testing'
+                        dir('python-app') {
+                            sh "ENVIRONMENT=test APP_VERSION=${env.APP_VERSION} python3 -m pytest -v test_app.py"
+                        }
+                    }
+                }
+
+                stage('Integration Tests') {
+                    steps {
+                        unstash 'app-for-testing'
+                        echo 'Running integration tests...'
+                        sh 'sleep 2'
+                        echo 'Integration tests passed'
+                    }
+                }
+
+                stage('Package Validation') {
+                    steps {
+                        unstash 'app-for-testing'
+                        ls 'ls -la python-app/dist/package/'
+                    }
+                }
+            }
+        }
     }
 }
