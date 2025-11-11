@@ -115,5 +115,19 @@ pipeline {
                 echo 'Deployment completed'
             }
         }
+
+        stage('Optional Unstash') {
+            steps {
+                script {
+                    try {
+                        unstash 'optional-files'
+                    } catch (Exception e) {
+                        echo 'Optional files not found, continuing...'
+                    }
+
+                    echo 'Stage completed successfully'
+                }
+            }
+        }
     }
 }
