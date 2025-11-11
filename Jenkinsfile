@@ -57,6 +57,8 @@ pipeline {
             steps {
                 archiveArtifacts artifacts: 'python-app/*.log',
                                  allowEmptyArchive: true
+
+                sh 'exit 1'
             }
         }
 
