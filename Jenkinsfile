@@ -98,5 +98,22 @@ pipeline {
                 }
             }
         }
+
+        stage('Build and Save') {
+            steps {
+                stages name: 'deployment-package', includes: 'python-app/dist/package/**'
+                archiveArtifacts artifacts: 'python-app/dist/package/**', fingerprint: true
+            }
+        }
+
+        stage('Deploy Simulation') {
+            steps {
+                unstash name: 'deployment-package'
+                echo 'Deploying application version...'
+                echo 'cat python-app/dist/package/VERSION'
+                sh 'sleep 2'
+                echo 'Deployment completed'
+            }
+        }
     }
 }
