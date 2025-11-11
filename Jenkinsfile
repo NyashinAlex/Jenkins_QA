@@ -19,7 +19,30 @@ pipeline {
 
         stage('Archive Build Artifacts') {
             steps {
-                archiveArtifacts artifacts: 'python-app/dist/build-info.json, python-app/dist/BUILD-REPORT.txt'
+                archiveArtifacts artifacts: 'python-app/dist/build-info.json'
+                archiveArtifacts artifacts: 'python-app/dist/BUILD-REPORT.txt'
+            }
+        }
+
+        stage('Archive All Build Output') {
+            steps {
+                archiveArtifacts artifacts: 'python-app/dist/**/*'
+            }
+        }
+
+        stage('Test') {
+            steps {
+                dir('python-app') {
+                    sh "ENVIRONMENT=test APP_VERSION=${env.APP_VERSION} pytest -v --cov=app --cov-report=html --cov-report=xml --junit-xml=test-results.xml"
+                }
+            }
+        }
+
+        stage('Archive Test Reports') {
+            steps {
+                archiveArtifacts artifacts: 'python-app/test-results.xml'
+                archiveArtifacts artifacts: 'python-app/coverage.xml'
+                archiveArtifacts artifacts: 'python-app/htmlcov/**/*'
             }
         }
     }
