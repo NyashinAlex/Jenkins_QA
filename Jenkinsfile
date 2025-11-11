@@ -12,8 +12,8 @@ pipeline {
                 dir('python-app') {
                     sh 'pip3 install -r requirements.txt --break-system-packages'
                     sh "APP_VERSION=${env.APP_VERSION} BUILD_NUMBER=${env.BUILD_NUMBER} python3 build.py"
-                    stash name: 'built-app', includes: 'python-app/dist/**', excludes: 'python-app/dist/package/*.pyc'
-                    stash name: 'package-only', includes: 'python-app/dist/**'
+                    stash name: 'built-app', includes: 'dist/**', excludes: 'python-app/dist/package/*.pyc'
+                    stash name: 'package-only', includes: 'dist/**'
                 }
             }
         }
@@ -66,7 +66,7 @@ pipeline {
 
         stage('Build for Tests') {
             steps {
-                stages name: 'app-for-testing', includes: 'python-app/dist/package/**'
+                stash name: 'app-for-testing', includes: 'python-app/dist/package/**'
             }
         }
 
@@ -93,7 +93,7 @@ pipeline {
                 stage('Package Validation') {
                     steps {
                         unstash 'app-for-testing'
-                        ls 'ls -la python-app/dist/package/'
+                        sh 'ls -la python-app/dist/package/'
                     }
                 }
             }
@@ -101,7 +101,7 @@ pipeline {
 
         stage('Build and Save') {
             steps {
-                stages name: 'deployment-package', includes: 'python-app/dist/package/**'
+                stash name: 'deployment-package', includes: 'python-app/dist/package/**'
                 archiveArtifacts artifacts: 'python-app/dist/package/**', fingerprint: true
             }
         }
