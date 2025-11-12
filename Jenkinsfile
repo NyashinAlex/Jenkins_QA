@@ -66,12 +66,31 @@ pipeline {
                 }
             }
         }
+
+        stage('Build and Test') {
+            steps {
+                dir('python-app') {
+                    sh 'pip3 install -r requirements.txt --break-system-packages'
+                    sh "python3 build.py"
+                    archiveArtifacts artifacts: 'python-app/dist/**'
+                }
+            }
+        }
     }
 
     post {
         always {
             sh 'du -sh .'
-            cleanWs()
+            cleanWs() {
+                deleteDirs: true,
+                patterns: [
+                    [pattern: 'python-app/dist/compiled/**', type: INCLUDE],
+                    [pattern: 'python-app/__pycache__/**', type: INCLUDE],
+                    [pattern: 'python-app/*.pyc', type: INCLUDE],
+                    [pattern: 'python-app/dist/package/**', type: EXCLUDE],
+                    [pattern: '.git/**', type: EXCLUDE]
+                ]
+            }
             echo 'Workspace cleaned after build'
         }
     }
