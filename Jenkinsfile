@@ -20,5 +20,24 @@ pipeline {
                 sh 'ls -R'
             }
         }
+
+        stage('Selective Clean') {
+            steps {
+                sh 'rm -rf temp/ old-build/ *.log'
+                echo 'Cleaned temporary files and old builds'
+                sh 'ls -la'
+            }
+        }
+
+        stage('Build with Selective Clean') {
+            steps {
+                sh 'rm -rf python-app/dist/ python-app/build/'
+                sh 'mkdir -p python-app/dist'
+                dir('python-app') {
+                    sh 'pip3 install -r requirements.txt --break-system-packages'
+                    sh "APP_VERSION=${env.APP_VERSION} BUILD_NUMBER=${env.BUILD_NUMBER} python3 build.py"
+                }
+            }
+        }
     }
 }
