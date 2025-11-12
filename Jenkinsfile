@@ -35,6 +35,7 @@ pipeline {
 
         stage('Build with Selective Clean') {
             steps {
+                checkout scm
                 sh 'rm -rf python-app/dist/ python-app/build/'
                 sh 'mkdir -p python-app/dist'
                 dir('python-app') {
@@ -72,7 +73,7 @@ pipeline {
                 dir('python-app') {
                     sh 'pip3 install -r requirements.txt --break-system-packages'
                     sh "python3 build.py"
-                    archiveArtifacts artifacts: 'python-app/dist/**'
+                    archiveArtifacts artifacts: 'dist/**'
                 }
             }
         }
@@ -81,16 +82,15 @@ pipeline {
             steps {
                 sh 'rm -rf python-app/dist/ python-app/build/'
                 sh 'if [ ! -d "python-app/venv" ]; then python3 -m venv python-app/venv; fi'
-                sh 'Smart cleanup completed - dependencies preserved'
+                echo 'Smart cleanup completed - dependencies preserved'
             }
         }
 
         stage('Build with Preserved Dependencies') {
             steps {
                 sh '''
-                    source python-app/venv/bin/activate
+                    . python-app/venv/bin/activate
                     python --version
-                    pip install -r requirements.txt
                 '''
             }
 
@@ -106,16 +106,16 @@ pipeline {
     post {
         always {
             sh 'du -sh .'
-            cleanWs() {
+            cleanWs(
                 deleteDirs: true,
                 patterns: [
-                    [pattern: 'python-app/dist/compiled/**', type: INCLUDE],
-                    [pattern: 'python-app/__pycache__/**', type: INCLUDE],
-                    [pattern: 'python-app/*.pyc', type: INCLUDE],
-                    [pattern: 'python-app/dist/package/**', type: EXCLUDE],
-                    [pattern: '.git/**', type: EXCLUDE]
+                    [pattern: 'python-app/dist/compiled/**', type: 'INCLUDE'],
+                    [pattern: 'python-app/__pycache__/**', type: 'INCLUDE'],
+                    [pattern: 'python-app/*.pyc', type: 'INCLUDE'],
+                    [pattern: 'python-app/dist/package/**', type: 'EXCLUDE'],
+                    [pattern: '.git/**', type: 'EXCLUDE']
                 ]
-            }
+            )
             echo 'Workspace cleaned after build'
         }
         success {
