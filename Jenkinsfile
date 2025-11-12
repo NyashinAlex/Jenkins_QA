@@ -1,6 +1,10 @@
 pipeline {
     agent any
 
+    options {
+        skipDefaultCheckout()
+    }
+
     stages {
         stage('Inspect Workspace') {
             steps {
@@ -35,7 +39,30 @@ pipeline {
                 sh 'mkdir -p python-app/dist'
                 dir('python-app') {
                     sh 'pip3 install -r requirements.txt --break-system-packages'
-                    sh "APP_VERSION=${env.APP_VERSION} BUILD_NUMBER=${env.BUILD_NUMBER} python3 build.py"
+                    sh "python3 build.py"
+                }
+            }
+        }
+
+        stage('Full Clean') {
+            steps {
+                deleteDir()
+                echo 'Workspace cleaned completely'
+            }
+        }
+
+        stage('Checkout Code') {
+            steps {
+                checkout scm
+                echo 'Code checked out'
+            }
+        }
+
+        stage('Build from Clean State') {
+            steps {
+                dir('python-app') {
+                    sh 'pip3 install -r requirements.txt --break-system-packages'
+                    sh "python3 build.py"
                 }
             }
         }
