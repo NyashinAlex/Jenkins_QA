@@ -76,6 +76,31 @@ pipeline {
                 }
             }
         }
+
+        stage('Smart Clean') {
+            steps {
+                sh 'rm -rf python-app/dist/ python-app/build/'
+                sh 'if [ ! -d "python-app/venv" ]; then python3 -m venv python-app/venv; fi'
+                sh 'Smart cleanup completed - dependencies preserved'
+            }
+        }
+
+        stage('Build with Preserved Dependencies') {
+            steps {
+                sh '''
+                    source python-app/venv/bin/activate
+                    python --version
+                    pip install -r requirements.txt
+                '''
+            }
+
+            post {
+                always {
+                    sh 'du -sh .'
+                    sh 'du -ah . | sort -rh | head -10'
+                }
+            }
+        }
     }
 
     post {
