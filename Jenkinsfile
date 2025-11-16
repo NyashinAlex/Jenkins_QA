@@ -16,6 +16,7 @@ pipeline {
         BUILD_VERSION = "${params.APP_VERSION}-${BUILD_NUMBER}"
         ENVIRONMENT = 'production'
     }
+
     stages {
         stage('Workspace Preparatione') {
             steps {
@@ -47,7 +48,7 @@ pipeline {
             }
         }
 
-        stage('Install Dependencies') {
+        stage('Build Application') {
             steps {
                 dir('python-app') {
                     echo "Building version ${env.BUILD_VERSION}"
@@ -68,36 +69,37 @@ pipeline {
         }
 
         stage('Parallel Testing') {
-            if(params.RUN_PARALLEL_TESTS == true) {
-                parallel {
-                    stage('Unit Tests') {
-                        steps {
-                            unstash 'test-files'
-                            dir('python-app') {
-                                sh "ENVIRONMENT=test APP_VERSION=${env.BUILD_VERSION} pytest -v --junit-xml=unit-test-results.xml"
-                                stash name: 'unit-test-results', includes: 'python-app/unit-test-results.xml'
-                            }
+            when {
+                expression { params.RUN_PARALLEL_TESTS }
+            }
+            parallel {
+                stage('Unit Tests') {
+                    steps {
+                        unstash 'test-files'
+                        dir('python-app') {
+                            sh "ENVIRONMENT=test APP_VERSION=${env.BUILD_VERSION} pytest -v --junit-xml=unit-test-results.xml"
+                            stash name: 'unit-test-results', includes: 'python-app/unit-test-results.xml'
                         }
                     }
+                }
 
-                    stage('Coverage Tests') {
-                        steps {
-                            unstash 'test-files'
-                            dir('python-app') {
-                                sh 'pytest --cov=app --cov-report=html --cov-report=xml'
-                                stash name: 'coverage-reports', includes: 'python-app/htmlcov/**, python-app/coverage.xml'
-                            }
+                stage('Coverage Tests') {
+                    steps {
+                        unstash 'test-files'
+                        dir('python-app') {
+                            sh 'pytest --cov=app --cov-report=html --cov-report=xml'
+                            stash name: 'coverage-reports', includes: 'python-app/htmlcov/**, python-app/coverage.xml'
                         }
                     }
+                }
 
-                    stage('Package Validation') {
-                        steps {
-                            unstash 'application-package'
-                            dir('python-app') {
-                                sh 'pytest --cov=app --cov-report=html --cov-report=xml'
-                                stash name: 'coverage-reports', includes: 'python-app/htmlcov/**, python-app/coverage.xml'
-                                sh 'unzip -t application-package.zip'
-                            }
+                stage('Package Validation') {
+                    steps {
+                        unstash 'application-package'
+                        dir('python-app') {
+                            sh 'pytest --cov=app --cov-report=html --cov-report=xml'
+                            stash name: 'coverage-reports', includes: 'python-app/htmlcov/**, python-app/coverage.xml'
+                            sh 'unzip -t application-package.zip'
                         }
                     }
                 }
@@ -175,7 +177,7 @@ pipeline {
             ✗ Build FAILED
             Build Number: ${env.BUILD_NUMBER}
             """
-            archiveArtifacts name: 'python-app/**/*.log, python-app/**/*.pyc', allowEmptyArchive: true
+            archiveArtifacts artifacts: 'python-app/**/*.log, python-app/**/*.pyc', allowEmptyArchive: true
         }
         cleanup {
             sh 'rm -rf tmp/ .cache/ .pytest_cache/ || true'
