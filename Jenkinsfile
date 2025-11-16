@@ -5,13 +5,16 @@ pipeline {
         stage('Build Go App') {
             agent {
                 docker {
-                    image 'golang:1.21'
+                    image 'golang-docker-cli:1.21'
+                    args '-v /var/run/docker.sock:/var/run/docker.sock --user root'
                     reuseNode true
                 }
             }
 
             steps {
-                sh 'go build -o app .'
+                dir('go-app') {
+                    sh 'go build -buildvcs=false -o app .'
+                }
                 echo 'SUCCESS'
             }
         }
@@ -19,27 +22,33 @@ pipeline {
         stage('Test Go App') {
             agent {
                 docker {
-                    image 'golang:1.21'
+                    image 'golang-docker-cli:1.21'
+                    args '-v /var/run/docker.sock:/var/run/docker.sock --user root'
                     reuseNode true
                 }
             }
 
             steps {
-                sh 'go test -v ./...'
+                dir('go-app') {
+                    sh 'go test -v ./...'
+                }
             }
         }
 
         stage('Lint') {
             agent {
                 docker {
-                    image 'golang:1.21'
+                    image 'golang-docker-cli:1.21'
+                    args '-v /var/run/docker.sock:/var/run/docker.sock --user root'
                     reuseNode true
                 }
             }
 
             steps {
-                sh 'go fmt ./...'
-                sh 'go vet ./...'
+                dir('go-app') {
+                    sh 'go fmt ./...'
+                    sh 'go vet ./...'
+                }
             }
         }
 
