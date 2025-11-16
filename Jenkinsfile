@@ -3,131 +3,183 @@ pipeline {
 
     options {
         skipDefaultCheckout()
+        buildDiscarder(logRotator(numToKeepStr: '10'))
     }
 
+    parameters {
+        string(name: 'APP_VERSION', defaultValue: '1.0.0', description: 'App version')
+        choice(name: 'BUILD_TYPE', choices: ['clean', 'incremental'], description: 'Build type')
+        booleanParam(name: 'RUN_PARALLEL_TESTS', defaultValue: true, description: 'Run tests in parallel')
+    }
+
+    environment {
+        BUILD_VERSION = "${params.APP_VERSION}-${BUILD_NUMBER}"
+        ENVIRONMENT = 'production'
+    }
     stages {
-        stage('Inspect Workspace') {
+        stage('Workspace Preparatione') {
             steps {
-                dir('pwd') {
-                    sh 'ls -la'
-                    sh 'du -sh .'
-                    echo "Workspace: ${env.WORKSPACE}"
+                script {
+                    echo 'Preparing workspace...'
+                    sh 'du -sh . 2>/dev/null || echo "Empty workspace"'
+                    if(params.BUILD_TYPE == 'clean') {
+                        deleteDir()
+                    } else {
+                        sh 'rm -rf python-app/dist/ python-app/build/ python-app/__pycache__/'
+                    }
                 }
             }
         }
 
-        stage('Create Test Files') {
-            steps {
-                sh 'echo "test" > test1.txt'
-                sh 'mkdir -p temp && echo "temp" > temp/temp.log'
-                sh 'mkdir -p old-build && echo "old" > old-build/app.jar'
-                sh 'ls -R'
-            }
-        }
-
-        stage('Selective Clean') {
-            steps {
-                sh 'rm -rf temp/ old-build/ *.log'
-                echo 'Cleaned temporary files and old builds'
-                sh 'ls -la'
-            }
-        }
-
-        stage('Build with Selective Clean') {
+        stage('Checkout') {
             steps {
                 checkout scm
-                sh 'rm -rf python-app/dist/ python-app/build/'
-                sh 'mkdir -p python-app/dist'
-                dir('python-app') {
-                    sh 'pip3 install -r requirements.txt --break-system-packages'
-                    sh "python3 build.py"
-                }
+                echo 'Code checked out successfully'
             }
         }
 
-        stage('Full Clean') {
-            steps {
-                deleteDir()
-                echo 'Workspace cleaned completely'
-            }
-        }
-
-        stage('Checkout Code') {
-            steps {
-                checkout scm
-                echo 'Code checked out'
-            }
-        }
-
-        stage('Build from Clean State') {
+        stage('Install Dependencies') {
             steps {
                 dir('python-app') {
                     sh 'pip3 install -r requirements.txt --break-system-packages'
-                    sh "python3 build.py"
+                    echo 'Dependencies installed'
                 }
             }
         }
 
-        stage('Build and Test') {
+        stage('Install Dependencies') {
             steps {
                 dir('python-app') {
-                    sh 'pip3 install -r requirements.txt --break-system-packages'
-                    sh "python3 build.py"
-                    archiveArtifacts artifacts: 'dist/**'
+                    echo "Building version ${env.BUILD_VERSION}"
+                    sh "APP_VERSION=${env.APP_VERSION} BUILD_NUMBER=${env.BUILD_NUMBER} python3 build.py"
+                    sh 'ls -la dist/'
                 }
             }
         }
 
-        stage('Smart Clean') {
+        stage('Create Stashes') {
             steps {
-                sh 'rm -rf python-app/dist/ python-app/build/'
-                sh 'if [ ! -d "python-app/venv" ]; then python3 -m venv python-app/venv; fi'
-                echo 'Smart cleanup completed - dependencies preserved'
+                stash name: 'application-package', includes: 'python-app/dist/package/**'
+                stash name: 'test-files', includes: 'python-app/test_app.py, python-app/app.py, python-app/requirements.txt'
+                stash name: 'documentation', includes: 'python-app/dist/docs/**, python-app/dist/*.md'
+
+                echo 'Created stashes for downstream stages'
             }
         }
 
-        stage('Build with Preserved Dependencies') {
-            steps {
-                sh '''
-                    . python-app/venv/bin/activate
-                    python --version
-                '''
-            }
+        stage('Parallel Testing') {
+            if(params.RUN_PARALLEL_TESTS == true) {
+                parallel {
+                    stage('Unit Tests') {
+                        steps {
+                            unstash 'test-files'
+                            dir('python-app') {
+                                sh "ENVIRONMENT=test APP_VERSION=${env.BUILD_VERSION} pytest -v --junit-xml=unit-test-results.xml"
+                                stash name: 'unit-test-results', includes: 'python-app/unit-test-results.xml'
+                            }
+                        }
+                    }
 
-            post {
-                always {
-                    sh 'du -sh .'
-                    sh 'du -ah . | sort -rh | head -10'
+                    stage('Coverage Tests') {
+                        steps {
+                            unstash 'test-files'
+                            dir('python-app') {
+                                sh 'pytest --cov=app --cov-report=html --cov-report=xml'
+                                stash name: 'coverage-reports', includes: 'python-app/htmlcov/**, python-app/coverage.xml'
+                            }
+                        }
+                    }
+
+                    stage('Package Validation') {
+                        steps {
+                            unstash 'application-package'
+                            dir('python-app') {
+                                sh 'pytest --cov=app --cov-report=html --cov-report=xml'
+                                stash name: 'coverage-reports', includes: 'python-app/htmlcov/**, python-app/coverage.xml'
+                                sh 'unzip -t application-package.zip'
+                            }
+                        }
+                    }
                 }
+            }
+        }
+
+        stage('Collect Test Results') {
+            steps {
+                unstash 'unit-test-results'
+                unstash 'coverage-reports'
+                echo 'Test results collected'
+            }
+        }
+
+        stage('Generate Reports') {
+            steps {
+                sh """
+                === Build Summary ===
+                Version: ${env.BUILD_VERSION}
+                Build Number: ${env.BUILD_NUMBER}
+                """
+            }
+        }
+
+        stage('Archive All Artifacts') {
+            steps {
+                unstash 'application-package'
+                unstash 'documentation'
+                archiveArtifacts artifacts: 'python-app/dist/package/**', fingerprint: true
+                archiveArtifacts artifacts: 'python-app/dist/docs/**', fingerprint: true
+                archiveArtifacts artifacts: 'python-app/dist/*.json, python-app/dist/*.txt', fingerprint: true
+                archiveArtifacts artifacts: 'python-app/*-test-results.xml, python-app/coverage.xml'
+                archiveArtifacts artifacts: 'python-app/htmlcov/**'
+                archiveArtifacts artifacts: 'final-report.txt'
+            }
+        }
+
+        stage('Deploy to Staging') {
+            when {
+                anyOf {
+                    branch 'master'
+                    branch 'main'
+                }
+            }
+            steps {
+                unstash 'application-package'
+                echo "Deploying version ${env.BUILD_VERSION} to staging..."
+                sh 'ls -la python-app/dist/package/'
+                sh 'sleep 2'
+                echo 'Deployment to staging completed'
             }
         }
     }
 
     post {
         always {
-            sh 'du -sh .'
-            cleanWs(
-                deleteDirs: true,
-                patterns: [
-                    [pattern: 'python-app/dist/compiled/**', type: 'INCLUDE'],
-                    [pattern: 'python-app/__pycache__/**', type: 'INCLUDE'],
-                    [pattern: 'python-app/*.pyc', type: 'INCLUDE'],
-                    [pattern: 'python-app/dist/package/**', type: 'EXCLUDE'],
-                    [pattern: '.git/**', type: 'EXCLUDE']
-                ]
-            )
-            echo 'Workspace cleaned after build'
+            echo '=== Pipeline Execution Complete ==='
+            echo "Duration: ${currentBuild.durationString}"
+            sh 'du -sh . || echo "N/A"'
         }
         success {
-            sh 'rm -rf python-app/dist/compiled/ python-app/__pycache__/'
-            echo 'Cleaned temporary files after successful build'
+            echo "✓ Build SUCCESS for version ${env.BUILD_VERSION}"
+            archiveArtifacts artifacts: 'package', fingerprint: true
+            cleanWs(
+                patterns: [
+                    [pattern: 'python-app/dist/package/**, .git/**', type: 'EXCLUDE'],
+                    [pattern: 'python-app/dist/compiled/**, python-app/__pycache__/**, python-app/*.pyc', type: 'INCLUDE']
+                ],
+                deleteDirs: true
+            )
+            echo 'Workspace cleaned (temporary files removed, package preserved'
         }
         failure {
-            archiveArtifacts artifacts: 'python-app/**/*.log', allowEmptyArchive: true
-            echo 'Workspace preserved for debugging'
+            echo """
+            ✗ Build FAILED
+            Build Number: ${env.BUILD_NUMBER}
+            """
+            archiveArtifacts name: 'python-app/**/*.log, python-app/**/*.pyc', allowEmptyArchive: true
         }
         cleanup {
-            sh 'rm -rf .cache/ tmp/'
+            sh 'rm -rf tmp/ .cache/ .pytest_cache/ || true'
+            echo 'Cleanup completed'
         }
     }
 }
