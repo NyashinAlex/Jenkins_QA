@@ -2,85 +2,67 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_HUB_USERNAME = 'nyashinalex'
-        IMAGE_NAME = 'go-app'
-        IMAGE_TAG = "1.0.${env.BUILD_NUMBER}"
-        FULL_IMAGE_NAME = "${DOCKER_HUB_USERNAME}/${IMAGE_NAME}:${IMAGE_TAG}"
-        BUILD_TIME = "${sh(script: 'date -u +"%Y-%m-%dT%H:%M:%SZ"', returnStdout: true).trim()}"
+        GIT_SHORT_COMMIT = env.GIT_COMMIT.take(7)
+        BUILD_VERSION = "1.0.${BUILD_NUMBER}-${GIT_SHORT_COMMIT}"
     }
 
     stages {
-        stage('Build Image') {
+        stage('Git Info') {
             steps {
-                script {
-                    customImage = docker.build(
-                        "${env.FULL_IMAGE_NAME}",
-                        "-f ./go-app/Dockerfile " +
-                        "--build-arg APP_VERSION=${env.IMAGE_TAG} " +
-                        "--build-arg BUILD_TIME=${env.BUILD_TIME} ./go-app"
-                    )
-                }
+                echo "GIT_BRANCH: ${env.GIT_BRANCH}"
+                echo "GIT_COMMIT: ${env.GIT_COMMIT}"
+                echo "GIT_SHORT_COMMIT: ${env.GIT_SHORT_COMMIT}"
+                echo "GIT_AUTHOR_NAME: ${env.GIT_AUTHOR_NAME}"
+                echo "GIT_AUTHOR_EMAIL: ${env.GIT_AUTHOR_EMAIL}"
+                echo "GIT_URL: ${env.GIT_URL}"
+                echo "BUILD_VERSION: ${env.BUILD_VERSION}"
             }
         }
 
-        stage('Test Image') {
+        stage('Commit Message') {
             steps {
                 script {
-                    customImage.inside {
-                        sh 'pwd'
-                        sh 'ls -lh /app/app'
-                        sh 'chmod +x /app/app'
-                        sh 'nohup /app/app > app.log 2>&1 &'
-                        sh 'sleep 2'
-                        sh 'wget --spider http://localhost:8080/health'
-                        sh 'wget -qO- http://localhost:8080/info'
+                    def commitMsg = sh(
+                        script: 'git log -1 --pretty=%B',
+                        returnStdout: true
+                    ).trim()
+
+                    echo "Commit message: ${commitMsg}"
+
+                    if (commitMsg.contains('[skip ci]')) {
+                        echo 'ERROR - msg [skip ci]'
                     }
                 }
             }
         }
 
-        stage('Push to Docker Hub') {
+        stage('Build') {
             steps {
-                script {
-                    docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-credentials') {
-                        customImage.push("${env.IMAGE_TAG}")
-                        customImage.push('latest')
-                    }
+                dir('flask-app') {
+                    sh 'pip3 install -r requirements.txt --break-system-packages'
+                    echo "BUILD_VERSION: ${env.BUILD_VERSION}"
                 }
             }
         }
 
-        stage('Verify Registry') {
-            steps {
-                script {
-                    sh "docker rmi ${env.FULL_IMAGE_NAME}"
-                    docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-credentials') {
-                        def image = docker.image("${env.FULL_IMAGE_NAME}")
-                        image.pull()
-                        sh "docker images ${env.DOCKER_HUB_USERNAME}/${env.IMAGE_NAME}"
-                    }
-                }
-            }
-        }
-
-        stage('Tag Additional Versions') {
+        stage('Create Git Tag') {
             when {
                 branch 'main'
             }
 
             steps {
-                script {
-                    customImage.push('stable')
-                }
+                sh 'git config user.name "Jenkins CI"'
+                sh 'git config user.email "jenkins@company.com"'
+                sh "git tag -a ${env.BUILD_VERSION} -m \"Release ${version}\""
             }
         }
-    }
 
-    post {
-        always {
-            sh "docker rmi ${env.DOCKER_HUB_USERNAME}/${env.IMAGE_NAME}:${env.IMAGE_TAG} || true"
-            sh "docker rmi ${env.DOCKER_HUB_USERNAME}/${env.IMAGE_NAME}:latest || true"
-            sh 'docker image prune -f'
+        stage('Git Stats') {
+            steps {
+                sh 'git rev-list --count HEAD'
+                sh 'git log -5 --pretty=format:"%h - %an: %s"'
+                sh "git diff-tree --no-commit-id --name-only -r HEAD"
+            }
         }
     }
 }
