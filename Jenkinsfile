@@ -46,20 +46,13 @@ pipeline {
 
             steps {
                 script {
-                    customImage.inside {
-                        sh 'pwd'
-                        sh 'ls -lh /app/app'
-                        sh 'chmod +x /app/app'
-                        sh 'nohup /app/app > app.log 2>&1 &'
-                        sh 'sleep 2'
-                        sh 'wget --spider http://localhost:8080/health'
-                        sh 'wget -qO- http://localhost:8080/info'
-                    }
-
-                    docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-credentials') {
-                        customImage.push("${env.IMAGE_TAG}")
-                        customImage.push('latest')
-                    }
+                    customImage = docker.build(
+                        "my-app:${env.BUILD_NUMBER}",
+                        "--build-arg APP_VERSION=${env.BUILD_NUMBER}" +
+                        "--build-arg BUILD_TIME=${env.BUILD_TIMESTAMP}" +
+                        "--build-arg GIT_COMMIT=${env.GIT_COMMIT}" +
+                        "--build-arg GIT_BRANCH=${env.GIT_BRANCH} ."
+                    )
                 }
             }
         }
