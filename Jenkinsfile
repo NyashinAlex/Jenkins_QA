@@ -90,16 +90,22 @@ pipeline {
             echo "SUCCESS for ${env.BRANCH_NAME}"
         }
         failure {
-            if(env.BRANCH_NAME == 'main') {
-                echo "FAIL for ${env.BRANCH_NAME}, fix!"
-            }
+            switch (env.BRANCH_NAME) {
 
-            if(env.BRANCH_NAME == 'develop') {
-                echo "FAIL for ${env.BRANCH_NAME}, QA update"
-            }
+                case 'main':
+                    echo "FAIL for main, fix!"
+                    break
 
-            if(env.BRANCH_NAME == 'feature/*') {
-                echo "FAIL for ${env.BRANCH_NAME}, good!"
+                case 'develop':
+                    echo "FAIL for develop, QA update"
+                    break
+
+                default:
+                    if (env.BRANCH_NAME.startsWith('feature/')) {
+                        echo "FAIL for ${env.BRANCH_NAME}, good!"
+                    } else {
+                        echo "FAIL for ${env.BRANCH_NAME}"
+                    }
             }
         }
     }
