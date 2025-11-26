@@ -86,22 +86,23 @@ pipeline {
             echo "SUCCESS for ${env.BRANCH_NAME}"
         }
         failure {
-            switch (env.BRANCH_NAME) {
+            script {
+                switch (env.BRANCH_NAME) {
+                    case 'main':
+                        echo "FAIL for main, fix!"
+                        break
 
-                case 'main':
-                    echo "FAIL for main, fix!"
-                    break
+                    case 'develop':
+                        echo "FAIL for develop, QA update"
+                        break
 
-                case 'develop':
-                    echo "FAIL for develop, QA update"
-                    break
-
-                default:
-                    if (env.BRANCH_NAME.startsWith('feature/')) {
-                        echo "FAIL for ${env.BRANCH_NAME}, good!"
-                    } else {
-                        echo "FAIL for ${env.BRANCH_NAME}"
-                    }
+                    default:
+                        if (env.BRANCH_NAME.startsWith('feature/')) {
+                            echo "FAIL for ${env.BRANCH_NAME}, good!"
+                        } else {
+                            echo "FAIL for ${env.BRANCH_NAME}"
+                        }
+                }
             }
         }
     }
