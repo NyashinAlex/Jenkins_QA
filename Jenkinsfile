@@ -2,37 +2,19 @@ pipeline {
     agent any
 
     environment {
-        GIT_SHORT_COMMIT = env.GIT_COMMIT.take(7)
-        BUILD_VERSION = "1.0.${BUILD_NUMBER}-${GIT_SHORT_COMMIT}"
+        APP_NAME = 'flask-app'
+        VERSION = "1.0.${BUILD_NUMBER}"
+        IMAGE_TAG = "${env.BRANCH_NAME}-${env.VERSION}"
     }
 
     stages {
-        stage('Git Info') {
+        stage('Branch Info') {
             steps {
-                echo "GIT_BRANCH: ${env.GIT_BRANCH}"
-                echo "GIT_COMMIT: ${env.GIT_COMMIT}"
-                echo "GIT_SHORT_COMMIT: ${env.GIT_SHORT_COMMIT}"
-                echo "GIT_AUTHOR_NAME: ${env.GIT_AUTHOR_NAME}"
-                echo "GIT_AUTHOR_EMAIL: ${env.GIT_AUTHOR_EMAIL}"
-                echo "GIT_URL: ${env.GIT_URL}"
-                echo "BUILD_VERSION: ${env.BUILD_VERSION}"
-            }
-        }
-
-        stage('Commit Message') {
-            steps {
-                script {
-                    def commitMsg = sh(
-                        script: 'git log -1 --pretty=%B',
-                        returnStdout: true
-                    ).trim()
-
-                    echo "Commit message: ${commitMsg}"
-
-                    if (commitMsg.contains('[skip ci]')) {
-                        echo 'ERROR - msg [skip ci]'
-                    }
-                }
+                echo """
+                BRANCH_NAME = ${env.BRANCH_NAME}
+                IMAGE_TAG = ${env.IMAGE_TAG}
+                TYPE = production
+                """
             }
         }
 
@@ -45,23 +27,79 @@ pipeline {
             }
         }
 
-        stage('Create Git Tag') {
-            when {
-                branch 'main'
-            }
-
+        stage('Test') {
             steps {
-                sh 'git config user.name "Jenkins CI"'
-                sh 'git config user.email "jenkins@company.com"'
-                sh "git tag -a ${env.BUILD_VERSION} -m \"Release ${version}\""
+                dir('flask-app') {
+                    sh 'pytest test_app.py -v'
+                }
             }
         }
 
-        stage('Git Stats') {
+        stage('Build Docker Image') {
+            when {
+                branch 'main'
+                branch 'develop'
+                branch 'feature/*'
+            }
+
             steps {
-                sh 'git rev-list --count HEAD'
-                sh 'git log -5 --pretty=format:"%h - %an: %s"'
-                sh "git diff-tree --no-commit-id --name-only -r HEAD"
+                script {
+                    customImage.inside {
+                        sh 'pwd'
+                        sh 'ls -lh /app/app'
+                        sh 'chmod +x /app/app'
+                        sh 'nohup /app/app > app.log 2>&1 &'
+                        sh 'sleep 2'
+                        sh 'wget --spider http://localhost:8080/health'
+                        sh 'wget -qO- http://localhost:8080/info'
+                    }
+                }
+            }
+
+            steps {
+                script {
+                    docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-credentials') {
+                        customImage.push("${env.IMAGE_TAG}")
+                        customImage.push('latest')
+                    }
+                }
+            }
+        }
+
+        stage('Deploy to Staging') {
+            when {
+                branch 'develop'
+            }
+
+            steps {
+                echo 'Deploying to staging environment'
+                echo 'run deploy'
+            }
+        }
+
+        stage('Deploy to Production') {
+            steps {
+                input message: 'Deploy to production?'
+                echo 'Deploy from production'
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "SUCCESS for ${env.BRANCH_NAME}"
+        }
+        failure {
+            if(env.BRANCH_NAME == 'main') {
+                echo "FAIL for ${env.BRANCH_NAME}, fix!"
+            }
+
+            if(env.BRANCH_NAME == 'develop') {
+                echo "FAIL for ${env.BRANCH_NAME}, QA update"
+            }
+
+            if(env.BRANCH_NAME == 'feature/*') {
+                echo "FAIL for ${env.BRANCH_NAME}, good!"
             }
         }
     }
