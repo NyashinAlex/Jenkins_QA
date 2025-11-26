@@ -39,7 +39,7 @@ pipeline {
             when {
                 branch 'main'
                 branch 'develop'
-                branch 'feature/*'
+                branch pattern: "feature/.*", comparator: "REGEXP"
             }
 
             steps {
@@ -53,11 +53,7 @@ pipeline {
                         sh 'wget --spider http://localhost:8080/health'
                         sh 'wget -qO- http://localhost:8080/info'
                     }
-                }
-            }
 
-            steps {
-                script {
                     docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-credentials') {
                         customImage.push("${env.IMAGE_TAG}")
                         customImage.push('latest')
