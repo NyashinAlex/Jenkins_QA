@@ -49,7 +49,7 @@ pipeline {
                     customImage = docker.build(
                         "my-app:${env.BUILD_NUMBER}",
                         "--build-arg APP_VERSION=${env.BUILD_NUMBER} " +
-                        "--build-arg BUILD_TIME=${currentBuild.durationString} " +
+                        "--build-arg BUILD_TIME=$(date +%Y-%m-%dT%H:%M:%S) " +
                         "--build-arg GIT_COMMIT=${env.GIT_COMMIT} " +
                         "--build-arg GIT_BRANCH=${env.GIT_BRANCH} ."
                     )
