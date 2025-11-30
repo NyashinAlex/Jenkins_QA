@@ -1,20 +1,25 @@
+// Обязательно! Чтобы customImage был доступен во всех stages и в post.
+def customImage = null
+
 pipeline {
     agent any
+
+    parameters {
+        choice(name: 'DEPLOY_ENV', choices: ['dev', 'staging', 'production'])
+        booleanParam(name: 'SKIP_TESTS', defaultValue: false)
+        string(name: 'DOCKER_REGISTRY', defaultValue: 'registry.company.com')
+    }
 
     environment {
         APP_NAME = 'flask-app'
         VERSION = "1.0.${BUILD_NUMBER}"
-        IMAGE_TAG = "${env.BRANCH_NAME}-${env.VERSION}"
+        IMAGE_TAG = "${params.DEPLOY_ENV}-${VERSION}"
     }
 
     stages {
-        stage('Branch Info') {
+        stage('Prepare Environment') {
             steps {
-                echo """
-                BRANCH_NAME = ${env.BRANCH_NAME}
-                IMAGE_TAG = ${env.IMAGE_TAG}
-                TYPE = production
-                """
+                sh "cat configs/config.${params.DEPLOY_ENV}.env"
             }
         }
 
@@ -22,12 +27,15 @@ pipeline {
             steps {
                 dir('flask-app') {
                     sh 'pip3 install -r requirements.txt --break-system-packages'
-                    echo "BUILD_VERSION: ${env.BUILD_VERSION}"
+                    echo "BUILD_VERSION: ${env.VERSION}"
                 }
             }
         }
 
         stage('Test') {
+            when {
+                expression { !params.SKIP_TESTS }
+            }
             steps {
                 dir('flask-app') {
                     sh 'pytest test_app.py -v'
@@ -36,68 +44,79 @@ pipeline {
         }
 
         stage('Build Docker Image') {
-            when {
-                anyOf {
-                    branch 'main'
-                    branch 'develop'
-                    branch pattern: "feature/.*", comparator: "REGEXP"
-                }
-            }
-
             steps {
                 script {
                     customImage = docker.build(
-                        "my-app:${env.BUILD_NUMBER}",
+                        "${params.DOCKER_REGISTRY}/${env.APP_NAME}:${env.IMAGE_TAG}",
                         "--build-arg APP_VERSION=${env.BUILD_NUMBER} " +
                         "--build-arg BUILD_TIME=${System.currentTimeMillis()} " +
                         "--build-arg GIT_COMMIT=${env.GIT_COMMIT} " +
-                        "--build-arg GIT_BRANCH=${env.GIT_BRANCH} ./go-app"
+                        "--build-arg GIT_BRANCH=${env.GIT_BRANCH} ./flask-app"
                     )
                 }
             }
         }
 
-        stage('Deploy to Staging') {
-            when {
-                branch 'develop'
-            }
-
+        stage('Deploy') {
             steps {
-                echo 'Deploying to staging environment'
-                echo 'run deploy'
+                script {
+
+                    // PRODUCTION подтверждение
+                    if (params.DEPLOY_ENV == 'production') {
+                        input message: "Deploy to PRODUCTION?"
+                    }
+
+                    echo "Deploying to ${params.DEPLOY_ENV}"
+
+                    // Удаляем старый контейнер
+                    sh """
+                        docker stop ${env.APP_NAME} || true
+                        docker rm ${env.APP_NAME} || true
+                    """
+
+                    // Запуск нового контейнера
+                    sh """
+                        docker run -d -p 5000:5000 --name ${env.APP_NAME} \
+                        ${params.DOCKER_REGISTRY}/${env.APP_NAME}:${env.IMAGE_TAG}
+                    """
+
+                    // Читаем API_URL из env файла
+                    env.API_URL = sh(
+                        script: "grep '^API_URL=' configs/config.${params.DEPLOY_ENV}.env | cut -d '=' -f2-",
+                        returnStdout: true
+                    ).trim()
+                    echo "API_URL = ${env.API_URL}"
+
+                    echo "Build duration: ${currentBuild.durationString}"
+                }
             }
         }
 
-        stage('Deploy to Production') {
+        stage('Health Check') {
             steps {
-                input message: 'Deploy to production?'
-                echo 'Deploy from production'
+                sh 'sleep 20'
+                sh "curl -f http://172.17.0.1:5000/health"
             }
         }
     }
 
     post {
         success {
-            echo "SUCCESS for ${env.BRANCH_NAME}"
+            echo "SUCCESS deploy"
+            echo "ENV = ${params.DEPLOY_ENV}"
+            echo "VERSION = ${env.VERSION}"
+            echo "Build took: ${currentBuild.durationString}"
         }
+
         failure {
+            echo "❌ ERROR in ${params.DEPLOY_ENV} environment"
+        }
+
+        always {
             script {
-                switch (env.BRANCH_NAME) {
-                    case 'main':
-                        echo "FAIL for main, fix!"
-                        break
-
-                    case 'develop':
-                        echo "FAIL for develop, QA update"
-                        break
-
-                    default:
-                        if (env.BRANCH_NAME.startsWith('feature/')) {
-                            echo "FAIL for ${env.BRANCH_NAME}, good!"
-                        } else {
-                            echo "FAIL for ${env.BRANCH_NAME}"
-                        }
-                }
+                // Останавливаем контейнер, если он ещё работает
+                sh "docker stop ${env.APP_NAME} || true"
+                sh "docker rm ${env.APP_NAME} || true"
             }
         }
     }
